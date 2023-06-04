@@ -25,7 +25,14 @@
         </div>
         <div class="doc-list">
           <div class="doc-list__categories" data-bind="foreach: categories">
-            <div class="doc-list__category" data-bind="fadeVisible: show, attr: { 'data-id': id }, css: { 'doc-list__category--expanded': expanded }">
+            <div
+              class="doc-list__category"
+              data-bind="
+                fadeVisible: show(),
+                attr: { 'data-id': id },
+                css: { 'doc-list__category--expanded': expanded },
+                event: { mouseover: $parent.onCategoryMouseover }
+              ">
               <div class="doc-list__item">
                 <div class="doc-list__category-collapse" data-bind="click: $parent.toggleCollapse">
                   <!-- ko if: expanded -->
@@ -44,7 +51,7 @@
                 </div>
               </div>
               <div class="doc-list__category-list" data-bind="foreach: docs, attr: { 'data-id': id }">
-                <div class="doc-list__item" data-bind="fadeVisible: show && $parent.expanded, attr: { 'data-id': id }">
+                <div class="doc-list__item" data-bind="fadeVisible: (show() && $parent.expanded()), attr: { 'data-id': id }">
                   <span class="doc-list__item-name" data-bind="text: name"></span>
                   <span class="doc-list__item-description" data-bind="text: description"></span>
                   <div class="doc-list__item-actions">
@@ -57,7 +64,7 @@
             </div>
           </div>
           <div class="doc-list__uncategorized-list" data-bind="foreach: uncategorized">
-            <div class="doc-list__item" data-bind="fadeVisible: show, attr: { 'data-id': id }">
+            <div class="doc-list__item" data-bind="fadeVisible: show(), attr: { 'data-id': id }">
               <span class="doc-list__item-name" data-bind="text: name"></span>
               <span class="doc-list__item-description" data-bind="text: description"></span>
               <div class="doc-list__item-actions">
@@ -242,13 +249,8 @@
             show: ko.observable(true),
           },
         ]);
-        self.docs = ko.computed(function() {
-          return [
-            ...self.categories().reduce((acc, el) => [...acc, ...el.docs()], []),
-            ...self.uncategorized(),
-          ];
-        });
         self.showCross = ko.observable(false);
+        self.isDragging = false;
         self.toggleCollapse = function(clicked) {
           clicked.expanded(!clicked.expanded());
         }
@@ -273,7 +275,15 @@
           });
 
           sortableCategories.on('drag:stopped', self.captureSortedCategories);
-          sortable.on('drag:stop', self.captureSortedDocs);
+          sortable.on('drag:start', self.onDocDragStart);
+          sortable.on('drag:stop', self.onDocDragStop);
+        }
+        self.onDocDragStart = function(e) {
+          self.isDragging = true;
+        }
+        self.onDocDragStop = function(e) {
+          self.isDragging = false;
+          self.captureSortedDocs();
         }
         self.captureSortedCategories = function(e) {
           const draggedEl = document.querySelector('.doc-list__item-source--is-dragging');
@@ -311,6 +321,12 @@
             draggedEl.remove();
           } catch (e) {}
         }
+        self.onCategoryMouseover = function(cat) {
+          if (!self.isDragging) {
+            return;
+          }
+          cat.expanded(true);
+        }
       };
       
       // Here's a custom Knockout binding that makes elements shown/hidden via jQuery's fadeIn()/fadeOut() methods
@@ -333,14 +349,30 @@
       ko.applyBindings(myViewModel);
 
       myViewModel.searchValue.subscribe(function(newValue) {
-        myViewModel.categories().forEach(el => el.show(
+        myViewModel.categories().forEach(el => {
+          const hasFoundDocs = el.docs().find(doc => {
+            return doc.name.toLocaleLowerCase().includes(newValue.toLocaleLowerCase()) ||
+              doc.description.toLocaleLowerCase().includes(newValue.toLocaleLowerCase());
+          });
+          if (hasFoundDocs) {
+            el.expanded(true);
+          }
+          el.show(
+            !newValue ||
+            el.name.toLocaleLowerCase().includes(newValue.toLocaleLowerCase()) ||
+            el.description.toLocaleLowerCase().includes(newValue.toLocaleLowerCase()) ||
+            hasFoundDocs,
+          )
+          el.docs().forEach(doc => doc.show(
+            !newValue ||
+            doc.name.toLocaleLowerCase().includes(newValue.toLocaleLowerCase()) ||
+            doc.description.toLocaleLowerCase().includes(newValue.toLocaleLowerCase())
+          ));
+        });
+        myViewModel.uncategorized().forEach(el => el.show(
           !newValue ||
           el.name.toLocaleLowerCase().includes(newValue.toLocaleLowerCase()) ||
           el.description.toLocaleLowerCase().includes(newValue.toLocaleLowerCase()),
-        ));
-        myViewModel.docs().forEach(el => el.show(
-          !newValue ||
-          el.name.toLocaleLowerCase().includes(newValue.toLocaleLowerCase()),
         ));
       });
       /*]]>*/

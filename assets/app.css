@@ -63,7 +63,7 @@ h1 {
   line-height: 12px;
   color: #8E9CBB;
   margin-right: 30px;
-  overflow-x: hidden;
+  overflow: hidden;
   flex-grow: 1;
 }
 svg {
@@ -111,9 +111,10 @@ svg {
   min-height: 5px;
   margin-top: -5px;
   z-index: 100;
+  transition: margin 700ms;
 }
 .doc-list__category--expanded .doc-list__category-list {
-  min-height: 0;
+  min-height: 5px;
   margin-top: 0;
 }
 .doc-list__category-list .doc-list__item {
